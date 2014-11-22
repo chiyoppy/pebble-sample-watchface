@@ -1,12 +1,32 @@
 #include <pebble.h>
 
-  
+
 static Window *s_main_window;
 static TextLayer *s_time_layer;
+static BitmapLayer *image_layer;
+
+static GBitmap *image;
+
+
+// display background image
+static void display_background() {
+  Layer *window_layer = window_get_root_layer(s_main_window);
+  GRect bounds = layer_get_frame(window_layer);
+
+  // This needs to be deinited on app exit which is when the event loop ends
+  image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_NO_LITTER);
+
+  // The bitmap layer holds the image for display
+  image_layer = bitmap_layer_create(bounds);
+  bitmap_layer_set_bitmap(image_layer, image);
+  bitmap_layer_set_alignment(image_layer, GAlignCenter);
+  layer_add_child(window_layer, bitmap_layer_get_layer(image_layer));
+}
+
 
 static void update_time() {
   // Get a tm structure
-  time_t temp = time(NULL); 
+  time_t temp = time(NULL);
   struct tm *tick_time = localtime(&temp);
 
   // Create a long-lived buffer
@@ -26,8 +46,10 @@ static void update_time() {
 }
 
 static void main_window_load(Window *window) {
+  display_background();
+
   // Create time TextLayer
-  s_time_layer = text_layer_create(GRect(0, 55, 144, 50));
+  s_time_layer = text_layer_create(GRect(0, 95, 144, 50));
   text_layer_set_background_color(s_time_layer, GColorClear);
   text_layer_set_text_color(s_time_layer, GColorBlack);
   text_layer_set_text(s_time_layer, "00:00");
@@ -38,7 +60,7 @@ static void main_window_load(Window *window) {
 
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
-  
+
   // Make sure the time is displayed from the start
   update_time();
 }
@@ -51,7 +73,7 @@ static void main_window_unload(Window *window) {
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
 }
-  
+
 static void init() {
   // Create main Window element and assign to pointer
   s_main_window = window_create();
@@ -64,12 +86,15 @@ static void init() {
 
   // Show the Window on the watch, with animated=true
   window_stack_push(s_main_window, true);
-  
+
   // Register with TickTimerService
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 }
 
 static void deinit() {
+  gbitmap_destroy(image);
+  bitmap_layer_destroy(image_layer);
+
   // Destroy Window
   window_destroy(s_main_window);
 }
@@ -79,3 +104,5 @@ int main(void) {
   app_event_loop();
   deinit();
 }
+
+
